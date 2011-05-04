@@ -10,6 +10,10 @@ define('ERROR_FORMATO_IMAGEN_NO_VALIDO'	, 'ERROR_FORMATO_IMAGEN_NO_VALIDO');
 
 define('ERROR_GUARDAR_IMAGEN_NO_VALIDO'	, 'ERROR_GUARDAR_IMAGEN_NO_VALIDO');
 define('ERROR_GUARDAR_IMAGEN_NO_EXISTE'	, 'ERROR_GUARDAR_IMAGEN_NO_EXISTE');
+define('ERROR_MODO_GUARDAR_IMAGEN'		, 'ERROR_MODO_GUARDAR_IMAGEN');
+
+
+define('ERROR_NO_EXISTE_DATO_IMAGEN'	, 'ERROR_NO_EXISTE_DATO_IMAGEN');
 
 
 $raiz = realpath('./') . '/';	//carpeta script
@@ -84,10 +88,8 @@ function guardar_imagen_subida($nombre_upload, $opciones = array(), $opciones_mi
 		$imagen = imageCreateFromString(file_get_contents($ruta_origen));
 		
 	//
-	
-	$_guardar_imagen = funcion_guardar_imagen(extension($ruta_destino));
-	
-	$_guardar_imagen($imagen, $ruta_destino); //, CALIDAD_COMPRESION);
+
+	$guardar_imagen($imagen, $ruta_destino); //, CALIDAD_COMPRESION);
 
 	//
 	if (is_array($opciones_mini))	//para guardar en ./mini/
@@ -96,6 +98,23 @@ function guardar_imagen_subida($nombre_upload, $opciones = array(), $opciones_mi
 	
 	return $ruta_destino;
 }
+
+function guardar_imagen($imagen, $ruta, $compresion = NULL)
+{
+	$funcion = funcion_guardar_imagen($ruta);
+	
+	if (is_null($compresion)
+		$funcion($imagen, $ruta);
+	else
+		$funcion($imagen, $ruta, reajustar_compresion($funcion, $compresion));
+}
+
+function reajustar_compresion($funcion, $compresion)
+{
+	//TODO: if (strtoupper($this->extension) == 'PNG')	$this->calidad = 9 - round(9 * $this->calidad / 100.0);
+	return $compresion;
+}
+
 
 /*
 	redimensionar_imagen <= f(ruta_archivo, ancho, ...)
@@ -139,51 +158,78 @@ function bm_alpha($bm)
 */
 
 	
-function funcion_guardar_imagen($extension)
+//function funcion_guardar_imagen($extension)
+function funcion_guardar_imagen($ruta, $modo = 'extension')	
 {
-	switch(strtolower($extension))
+	if ($modo == 'extension')
+		$funcion = funcion_guardar_imagen_por_extension(extension($ruta));
+
+	//if ($modo == 'MIME')	//de momento queda descartado
+	//	$funcion = funcion_guardar_imagen_por_mime(mime($ruta));
+		
+	if (! isset($function) )
+		die(ERROR_MODO_GUARDAR_IMAGEN . " ¿$modo? ");
+		
+	if (function_exists($funcion))
+		return $funcion;
+	else
+		die(ERROR_GUARDAR_IMAGEN_NO_EXISTE  . " ¿$funcion? ");	
+}
+
+function funcion_guardar_imagen_por_extension($tipo_extension)
+{
+	switch(strtolower($tipo_extension))
 	{
 		case 'jpg':
-		case 'jpeg': return 'imagejpeg'; break;
+		case 'jpeg': $funcion = 'imagejpeg'; break;
 		
-		default: return 'image'.$extension;
+		default: $funcion = 'image'.$tipo_extension;
 	}
+	
+	return $funcion;
 }
 
 /*
-function funcion_guardar_imagen($tipo_mime)
+	obtener funcion guardar según tipo mime
+		!!! aunque para guardar en otro formato se obtendria según extension de la ruta destino
+*/
+function funcion_guardar_imagen_por_mime($tipo_mime)
 {
 	switch(strtolower($tipo_mime))
 	{
 		case 'image/gif':
-	  		$funcion_guardar = 'imagegif';
+	  		$funcion = 'imagegif';
 			break;
 			
       	case 'image/pjpeg':
 		case 'image/jpeg':
 		case 'image/jpg':
-	  		$funcion_guardar = 'imagejpeg';
+	  		$funcion = 'imagejpeg';
 			break;
 			
 		case 'image/png':
 		case 'image/x-png':
-			$funcion_guardar = 'imagepng';
+			$funcion = 'imagepng';
 			break;
 			
 		default: die(ERROR_GUARDAR_IMAGEN_NO_VALIDO);
 	}
 	
-	if (is_function_exists($funcion_guardar))
-		return $funcion_guardar;
-	else
-		die(ERROR_GUARDAR_IMAGEN_NO_EXISTE  . " ¿$funcion_guardar? ");
+	return $funcion;
 }
-*/
 
 	
-function datos_archivo_imagen($ruta)
+function datos_archivo_imagen($ruta, $nombre_dato = NULL)
 {
-	return getImageSize($ruta);
+	if (is_null($nombre_dato))
+		return getImageSize($ruta);
+		
+	$datos = getImageSize($ruta);
+	
+	if (isset($datos[$nombre_dato]))
+		return $datos[$nombre_dato];
+	else
+		die(ERROR_NO_EXISTE_DATO_IMAGEN . " ¿$nombre_dato? ");
 }
 	
 function guardar_archivo_subido($nombre_upload, $ruta_destino = '')
@@ -206,6 +252,11 @@ function guardar_archivo_subido($nombre_upload, $ruta_destino = '')
 function extension($ruta_archivo)
 {
 	return end(explode('.', strtolower($ruta_archivo)));
+}
+
+function mime($ruta_archivo)
+{
+	return datos_archivo_imagen($ruta_archivo, 'mime');
 }
 
 function existe_extension($nombre_archivo, $lista_extensiones)
