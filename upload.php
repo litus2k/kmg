@@ -15,6 +15,12 @@ define('ERROR_MODO_GUARDAR_IMAGEN'		, 'ERROR_MODO_GUARDAR_IMAGEN');
 
 define('ERROR_NO_EXISTE_DATO_IMAGEN'	, 'ERROR_NO_EXISTE_DATO_IMAGEN');
 
+//
+
+define('FORMATOS_PROHIBIDOS'	, 'php,php3,php4,phtml,exe');
+define('FORMATOS_IMAGENES'		, 'jpg,png,gif,jpeg');
+
+//
 
 $raiz = realpath('./') . '/';	//carpeta script
 
@@ -23,35 +29,32 @@ define('CARPETA_UPLOADS' 	, $raiz . 'ups/');
 define('CARPETA_IMAGENES'	, CARPETA_UPLOADS . 'img/');
 define('SUBCARPETA_MINIS'	, '_min/');
 
-define('FORMATOS_PROHIBIDOS'	, 'php,php3,php4,phtml,exe');
-define('FORMATOS_IMAGENES'		, 'jpg,png,gif,jpeg');
-
-
-//define('CALIDAD_COMPRESION', 3);
-
 //
 
-if (archivo_subido('archivo')) 
+if (hay_archivo_subido('archivo')) 
 	guardar_archivo_subido('archivo');
 
-if (archivo_subido('imagen')) 
+if (hay_archivo_subido('imagen')) 
 {
 	$opciones_imagen = array
 	(
 		'destino'			=> CARPETA_IMAGENES,
-		'dimensiones' 		=> '320x',
-		'redimensionado'	=> CENTRADO_X,
-		'fondo'				=> 'FFFFFF',		
+		//'dimensiones' 	=> '320x',
+		'ancho'				=> 320,
+		//'redimensionado'	=> CENTRADO_X,
+		//'fondo'				=> 'FFFFFF',		
 		'formato' 			=> 'png',
-		'compresion' 		=> 7
+		'calidad' 			=> 70 //%
 	);
 
 	$opciones_imagen_mini = array
 	(
 		'destino'		=> CARPETA_IMAGENES . SUBCARPETA_MINIS,
-		'dimensiones' 	=> '32x32',
+		//'dimensiones' => '32x32',
+		'ancho'			=> 32,
+		'alto'			=> 32,
 		'formato' 		=> 'png',
-		'compresion' 	=> 4
+		'calidad' 		=> 40
 	);
 	
 	guardar_imagen_subida('imagen', $opciones_imagen, $opciones_imagen_mini);
@@ -59,104 +62,115 @@ if (archivo_subido('imagen'))
 
 //
 
-function archivo_subido($nombre_upload)
+function hay_archivo_subido($nombre_upload)
 {
-	return isset($_FILES[$nombre_upload]) && !empty($_FILES[$nombre_upload]['tmp_name']) ;
+	//return isset($_FILES[$nombre_upload]) && !empty(....['tmp_name']) && is_uploaded_file(.....['tmp_name']);
+	return ($as = @$_FILES[$nombre_upload]) && ($tmp_name = @$as['tmp_name']) && is_uploaded_file($tmp_name);
 }
+
+//
 
 function guardar_imagen_subida($nombre_upload, $opciones = array(), $opciones_mini = null)
 {
 	$as = $_FILES[$nombre_upload];
 
 	comprobar_upload_imagen($as);
-
-	//
-	$ruta_destino = $opciones['destino'];
+	
 	//
 	
 	$ruta_origen = $as['tmp_name'];
-
-	if (empty($ruta_destino))
-		$ruta_destino = CARPETA_IMAGENES . $as['name'];
-
-	//---  TODO: ampliar datos imagen (resolucion(ruta_origen), ...)
 	
 	if (! empty($opciones['dimensiones']))
-		$imagen = redimensionar_imagen($imagen, $opciones['dimensiones']);
+		$imagen = redimensionar_imagen($ruta_origen, $opciones['dimensiones']);
 
 	if (! isset($imagen) )
 		$imagen = imageCreateFromString(file_get_contents($ruta_origen));
 		
 	//
 
-	$guardar_imagen($imagen, $ruta_destino); //, CALIDAD_COMPRESION);
+	$nombre = @$opciones['nombre'];	if (empty($nombre)) $nombre = $as['name'];
+	$ruta_destino = @$opciones['destino']; if (empty($ruta_destino)) $ruta_destino = CARPETA_IMAGENES . $nombre;
+
+	//
+	
+	$guardar_imagen($imagen, $ruta_destino, @$opciones['calidad']);
 
 	//
 	if (is_array($opciones_mini))	//para guardar en ./mini/
-		$imagen_mini = bm_redimensionar($imagen, $opciones_mini);
+	{
+		$ruta_destino_mini =  @$opciones_mini['destino']; 
+		if (empty($ruta_destino_mini)) $ruta_destino_mini = CARPETA_IMAGENES . SUBCARPETA_MINIS . $nombre;
+		$imagen_mini = redimensionar_imagen($ruta_origen, $opciones_mini['dimensiones']);
+		$guardar_imagen($imagen_mini, $ruta_destino_mini, @$opciones_mini['calidad']);
+	}
 	//
 	
 	return $ruta_destino;
 }
 
-function guardar_imagen($imagen, $ruta, $compresion = NULL)
+function guardar_imagen($imagen, $ruta, $calidad = NULL)
 {
 	$funcion = funcion_guardar_imagen($ruta);
 	
-	if (is_null($compresion)
+	if (is_null($calidad)
 		$funcion($imagen, $ruta);
 	else
-		$funcion($imagen, $ruta, reajustar_compresion($funcion, $compresion));
+		$funcion($imagen, $ruta, reajustar_calidad_compresion($funcion, $calidad));
 }
 
-function reajustar_compresion($funcion, $compresion)
+function reajustar_calidad_compresion($funcion, $compresion)
 {
-	//TODO: if (strtoupper($this->extension) == 'PNG')	$this->calidad = 9 - round(9 * $this->calidad / 100.0);
+	switch (strtolower($funcion))
+	{
+		case 'imagepng': $compresion = 9 - round(9 * $compresion / 100.0); break;
+	}
+	
 	return $compresion;
 }
 
+// nueva_redimension =>  anchoXalto,  anchoX, Xalto, escala%, ....
+// list($anchoN, $altoN) = nuevo_ancho_alto('50%', 320, 200) => (160,100)
+//function nuevo_ancho_alto($nueva_redimension, $ancho_inicial, $alto_inicial)
+function calcular_redimension($datos_redimension, $info) //$info =  datos_archivo_imagen($ruta); 
+{
+	$wO = $info['width']; 	$hO = $info['height'];
 
-/*
-	redimensionar_imagen <= f(ruta_archivo, ancho, ...)
+	list($wN, $hN) = is_array($datos_redimension) ? $datos_redimension : explode('x', $datos_redimension);
+	
+	if (isset($wN) || isset($hN))
+	{
+		$relWHO = $wO / hO;
+		
+		if (is_null($hN))	$hN = round($wN / $relWHO);
+		if (is_null($wN))	$wN = round($hN * $relWHO);
+	}
+	else
+	{
+		$porciento = int($datos_redimension) / 100.0;
+		
+		$wN = round($wO * $porciento);
+		$hN = round($hO * $porciento);
+	}
+	
+	return array($wN, $hN, $wO, $hO);
+}
 
-		$colorFondo = ImageColorAllocateAlpha($imgN, 255,255,255,0);
-		ImageFill($imgN , 0,0 , $colorFondo); //amb truecolor cal pintar el fons	
-*/
-function redimensionar_imagen($ruta, $wN, $hN = NULL)
+//	redimensionar_imagen <= f(ruta_archivo, ancho, ...)
+function redimensionar_imagen($ruta, $datos_redimension)
 {
 	$imgO = imageCreateFromString(file_get_contents($ruta));
 	
-	$info =  datos_archivo_imagen($ruta);
-	$wO = $info['width'];	$hO = $info['height'];	$relWHO = $wO / hO;
-	
-	if (is_null($hN))	$hN = round($wN / $relWHO);
+	list($wN, $hN, $wO, $hO) = calcular_redimension($datos_redimension, datos_archivo_imagen($ruta));
 	
 	$imgN = ImageCreateTrueColor ($wN, $hN); 
 
+		//$colorFondo = ImageColorAllocateAlpha($imgN, 255,255,255,0);
+		//ImageFill($imgN , 0,0 , $colorFondo); //amb truecolor cal pintar el fons	
+	
 	ImageCopyResampled($imgN, $imgO, 0, 0, 0, 0, $wN, $hN, $wO, $hO);
 	
 	return $imgN;
 }
-
-
-/*
-function bm_crear($dimensiones)
-{
-	list($ancho, $alto) = explode('x',$dimensiones);
-	
-	return ImageCreateTrueColor ($ancho, $alto);
-}
-
-function bm_alpha($bm)
-{
-	// Desactivar la mezcla alfa y establecer la bandera alfa
-	imagealphablending($bm, false);
-	imagesavealpha($bm, true);
-
-	return $bm;	
-}
-*/
-
 	
 //function funcion_guardar_imagen($extension)
 function funcion_guardar_imagen($ruta, $modo = 'extension')	
@@ -264,6 +278,11 @@ function existe_extension($nombre_archivo, $lista_extensiones)
 	return in_array(extension($nombre_archivo), $lista_extensiones);
 }
 
+function lista($cadena, $separador = ',')
+{
+	return explode($separador, $cadena);
+}
+
 function comprobar_upload($as)
 {
 	if ($as['error'])
@@ -272,7 +291,7 @@ function comprobar_upload($as)
 	if (! is_uploaded_file($as['tmp_name']))
 		die(ERROR_NOT_A_UPLOADED_FILE . ' ' . $as['tmp_name']);	
 		
-	if (existe_extension($as['name'], explode(',',FORMATOS_PROHIBIDOS)))
+	if (existe_extension($as['name'], lista(FORMATOS_PROHIBIDOS)))
 		die(ERROR_FORMATO_PROHIBIDO);
 		
 	//if (file_size($as['tmp_name']) > MAX_PESO_UPLOAD)
@@ -307,10 +326,33 @@ function comprobar_upload_imagen($as)
 	if(! stristr( $info['mime'], 'image/' ))	//if(! eregi('image/', $info['mime']))
 		die(ERROR_NO_IMAGE_MIME_FILE);	
 	
-	if (! existe_extension($as['name'], explode(',',FORMATOS_IMAGENES)))
+	if (! existe_extension($as['name'], lista(FORMATOS_IMAGENES)))
 		die(ERROR_FORMATO_IMAGEN_NO_VALIDO);
 	
 }
+
+
+
+/*
+function bm_crear($dimensiones)
+{
+	list($ancho, $alto) = explode('x',$dimensiones);
+	
+	return ImageCreateTrueColor ($ancho, $alto);
+}
+
+function bm_alpha($bm)
+{
+	// Desactivar la mezcla alfa y establecer la bandera alfa
+	imagealphablending($bm, false);
+	imagesavealpha($bm, true);
+
+	return $bm;	
+}
+*/
+
+
+
 
 /*
 
