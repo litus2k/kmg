@@ -38,26 +38,26 @@ if (hay_archivo_subido('imagen'))
 {
 	$opciones_imagen = array
 	(
-		'destino'			=> CARPETA_IMAGENES,
-		//'dimensiones' 	=> '320x',
-		'ancho'				=> 320,
+		'carpeta'			=> CARPETA_IMAGENES,
+		'dimensiones' 	=> '320x',
+		//'ancho'				=> 320,
 		//'redimensionado'	=> CENTRADO_X,
 		//'fondo'				=> 'FFFFFF',		
-		'formato' 			=> 'png',
+		//'formato' 			=> 'png',
 		'calidad' 			=> 70 //%
 	);
 
 	$opciones_imagen_mini = array
 	(
-		'destino'		=> CARPETA_IMAGENES . SUBCARPETA_MINIS,
-		//'dimensiones' => '32x32',
-		'ancho'			=> 32,
-		'alto'			=> 32,
-		'formato' 		=> 'png',
+		'carpeta'		=> CARPETA_IMAGENES . SUBCARPETA_MINIS,
+		'dimensiones' => '32x32',
+		//'ancho'			=> 32,
+		//'alto'			=> 32,
+		//'formato' 		=> 'png',
 		'calidad' 		=> 40
 	);
 	
-	guardar_imagen_subida('imagen', $opciones_imagen, $opciones_imagen_mini);
+	guardar_imagen_subida('imagen', $opciones_imagen); //, $opciones_imagen_mini);
 }	
 
 //
@@ -88,12 +88,15 @@ function guardar_imagen_subida($nombre_upload, $opciones = array(), $opciones_mi
 		
 	//
 
-	$nombre = @$opciones['nombre'];	if (empty($nombre)) $nombre = $as['name'];
-	$ruta_destino = @$opciones['destino']; if (empty($ruta_destino)) $ruta_destino = CARPETA_IMAGENES . $nombre;
+	$nombre 	= @$opciones['nombre'];		if (empty($nombre)) 	$nombre 	= $as['name'];
+	//$ext 		= @$opciones['formato']; 	if (empty($ext)) 		$ext 		= extension($nombre);	
+	$carpeta 	= @$opciones['carpeta']; 	if (empty($carpeta)) 	$carpeta 	= CARPETA_IMAGENES;
+	
+	$ruta_destino = $carpeta . $nombre; // . '.' . $ext;
 
 	//
 	
-	$guardar_imagen($imagen, $ruta_destino, @$opciones['calidad']);
+	guardar_imagen($imagen, $ruta_destino, @$opciones['calidad']);
 
 	//
 	if (is_array($opciones_mini))	//para guardar en ./mini/
@@ -112,7 +115,7 @@ function guardar_imagen($imagen, $ruta, $calidad = NULL)
 {
 	$funcion = funcion_guardar_imagen($ruta);
 	
-	if (is_null($calidad)
+	if (is_null($calidad))
 		$funcion($imagen, $ruta);
 	else
 		$funcion($imagen, $ruta, reajustar_calidad_compresion($funcion, $calidad));
@@ -133,16 +136,16 @@ function reajustar_calidad_compresion($funcion, $compresion)
 //function nuevo_ancho_alto($nueva_redimension, $ancho_inicial, $alto_inicial)
 function calcular_redimension($datos_redimension, $info) //$info =  datos_archivo_imagen($ruta); 
 {
-	$wO = $info['width']; 	$hO = $info['height'];
+	list($wO, $hO) = $info;
 
 	list($wN, $hN) = is_array($datos_redimension) ? $datos_redimension : explode('x', $datos_redimension);
 	
 	if (isset($wN) || isset($hN))
 	{
-		$relWHO = $wO / hO;
+		$relWHO = $wO / $hO;
 		
-		if (is_null($hN))	$hN = round($wN / $relWHO);
-		if (is_null($wN))	$wN = round($hN * $relWHO);
+		if (empty($hN))	$hN = round($wN / $relWHO);
+		if (empty($wN))	$wN = round($hN * $relWHO);
 	}
 	else
 	{
@@ -162,7 +165,7 @@ function redimensionar_imagen($ruta, $datos_redimension)
 	
 	list($wN, $hN, $wO, $hO) = calcular_redimension($datos_redimension, datos_archivo_imagen($ruta));
 	
-	$imgN = ImageCreateTrueColor ($wN, $hN); 
+	$imgN = ImageCreateTrueColor ($wN, $hN); //var_dump($wN, $hN);
 
 		//$colorFondo = ImageColorAllocateAlpha($imgN, 255,255,255,0);
 		//ImageFill($imgN , 0,0 , $colorFondo); //amb truecolor cal pintar el fons	
@@ -181,7 +184,7 @@ function funcion_guardar_imagen($ruta, $modo = 'extension')
 	//if ($modo == 'MIME')	//de momento queda descartado
 	//	$funcion = funcion_guardar_imagen_por_mime(mime($ruta));
 		
-	if (! isset($function) )
+	if (! isset($funcion) )
 		die(ERROR_MODO_GUARDAR_IMAGEN . " ¿$modo? ");
 		
 	if (function_exists($funcion))
@@ -452,8 +455,8 @@ function coord_redimensionar($dimension_inicial, $dimension_final, $modo = CENTR
 ?>
 <body>
 <form enctype=multipart/form-data  method=POST>
-<input name=archivo type=file >
-<input name=imagen type=file >
+archivo <input name=archivo type=file >
+imagen <input name=imagen type=file >
 <input type=submit >
 </form>
 </body>
