@@ -38,12 +38,9 @@ if (hay_archivo_subido('imagen'))
 {
 	$opciones_imagen = array
 	(
+		//'destino'			=> CARPETA_IMAGENES,
 		'carpeta'			=> CARPETA_IMAGENES,
 		'dimensiones' 	=> '320x',
-		//'ancho'				=> 320,
-		//'redimensionado'	=> CENTRADO_X,
-		//'fondo'				=> 'FFFFFF',		
-		//'formato' 			=> 'png',
 		'calidad' 			=> 70 //%
 	);
 
@@ -51,13 +48,13 @@ if (hay_archivo_subido('imagen'))
 	(
 		'carpeta'		=> CARPETA_IMAGENES . SUBCARPETA_MINIS,
 		'dimensiones' => '32x32',
-		//'ancho'			=> 32,
-		//'alto'			=> 32,
-		//'formato' 		=> 'png',
+		'formato' 		=> 'png',
 		'calidad' 		=> 40
 	);
+
+	$opciones_imagen['mini'] = $opciones_imagen_mini;
 	
-	guardar_imagen_subida('imagen', $opciones_imagen); //, $opciones_imagen_mini);
+	guardar_imagen_subida('imagen', $opciones_imagen);
 }	
 
 //
@@ -70,13 +67,14 @@ function hay_archivo_subido($nombre_upload)
 
 //
 
-function guardar_imagen_subida($nombre_upload, $opciones = array(), $opciones_mini = null)
+//function guardar_imagen_subida($nombre_upload, $opciones = array(), $opciones_mini = null)
+function guardar_imagen_subida($nombre_upload, $opciones = array())
 {
 	$as = $_FILES[$nombre_upload];
 
 	comprobar_upload_imagen($as);
 	
-	//
+	// procesar imagen subida
 	
 	$ruta_origen = $as['tmp_name'];
 	
@@ -84,32 +82,42 @@ function guardar_imagen_subida($nombre_upload, $opciones = array(), $opciones_mi
 		$imagen = redimensionar_imagen($ruta_origen, $opciones['dimensiones']);
 
 	if (! isset($imagen) )
-		$imagen = imageCreateFromString(file_get_contents($ruta_origen));
+		$imagen = leer_imagen($ruta_origen);
 		
-	//
+	// guardar imagen procesada
 
-	$nombre 	= @$opciones['nombre'];		if (empty($nombre)) 	$nombre 	= $as['name'];
-	//$ext 		= @$opciones['formato']; 	if (empty($ext)) 		$ext 		= extension($nombre);	
-	$carpeta 	= @$opciones['carpeta']; 	if (empty($carpeta)) 	$carpeta 	= CARPETA_IMAGENES;
-	
-	$ruta_destino = $carpeta . $nombre; // . '.' . $ext;
+	$ruta_destino = ruta_destino($opciones, $as);
 
 	//
-	
+
 	guardar_imagen($imagen, $ruta_destino, @$opciones['calidad']);
 
-	//
-	if (is_array($opciones_mini))	//para guardar en ./mini/
-	{
-		$ruta_destino_mini =  @$opciones_mini['destino']; 
-		if (empty($ruta_destino_mini)) $ruta_destino_mini = CARPETA_IMAGENES . SUBCARPETA_MINIS . $nombre;
-		$imagen_mini = redimensionar_imagen($ruta_origen, $opciones_mini['dimensiones']);
-		$guardar_imagen($imagen_mini, $ruta_destino_mini, @$opciones_mini['calidad']);
-	}
-	//
+	//!! reutilizar estructura datos para reutilizar el proceso ... 
+	// ( y para facilitar el guardar varios formatos, diferentes tamaños... )
+	if (isset($opciones['mini'])) $destino_mini = guardar_imagen_subida($nombre_upload, $opciones['mini']);
+			//!! o guardar_imagen($ruta, $opciones, ...)  ¿¿?? procesar_y_guardar_imagen($ruta..,....
 	
-	return $ruta_destino;
+	return $ruta_destino;	//!! o array rutas..
 }
+
+function ruta_destino($opciones, $as = null)
+{
+	$nombre 	= @$opciones['nombre'];		if (empty($nombre)) 	$nombre 	= $as['name'];
+	$ext 		= @$opciones['formato']; 	if (empty($ext)) 		$ext 		= extension($nombre);	
+	$carpeta 	= @$opciones['carpeta']; 	if (empty($carpeta)) 	$carpeta 	= CARPETA_IMAGENES;
+	
+	$nombre = basename(strtolower($nombre), extension($nombre)); //nos quedamos con "nombre."
+	
+	$ruta = $carpeta . $nombre . $ext;
+
+	return $ruta;
+}
+
+function leer_imagen($ruta)
+{
+	return imageCreateFromString(file_get_contents($ruta));
+}
+
 
 function guardar_imagen($imagen, $ruta, $calidad = NULL)
 {
