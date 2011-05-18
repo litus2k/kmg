@@ -1,4 +1,16 @@
 <?php
+
+/*  TODO: gestión destinos avanzada
+
+			/   'carpeta/' 
+			_   'prefijo_', '_sufijo'
+			-   'prefijo-', '-sufijo'
+				'nombre.ext'  => la ext define formato
+				'nombre'
+							
+	TODO: acoplar algún plugin en cliente para definir recorte imagen	(jquery_upload_cropv1.2)		
+*/
+
 define('ERROR_NOT_A_UPLOADED_FILE'		, 'ERROR_NO_UPLOADED_FILE');
 define('ERROR_MOVE_UPLOADED_FILE'		, 'ERROR_MOVE_UPLOADED_FILE');
 
@@ -22,9 +34,10 @@ define('FORMATOS_IMAGENES'		, 'jpg,png,gif,jpeg');
 
 //
 
-$raiz = realpath('./') . '/';	//carpeta script
+$raiz = realpath('./') . '/';	//carpeta script o podria ser getcwd()
+define('RUTA_RAIZ', $raiz);		//de momento se puede usar para obtener rutas relativas (subprimiendo la raíz de la ruta absoluta)
 
-define('CARPETA_UPLOADS' 	, $raiz . 'ups/');
+define('CARPETA_UPLOADS' 	, RUTA_RAIZ . 'ups/');
 
 define('CARPETA_IMAGENES'	, CARPETA_UPLOADS . 'img/');
 define('SUBCARPETA_MINIS'	, '_min/');
@@ -36,10 +49,11 @@ if (hay_archivo_subido('archivo'))
 
 if (hay_archivo_subido('imagen')) 
 {
+
 	$opciones_imagen = array
 	(
 		//'destino'			=> CARPETA_IMAGENES,
-		'carpeta'			=> CARPETA_IMAGENES,
+		'carpeta'			=> CARPETA_IMAGENES, //!! la ruta tiene que ser relativa (a WWW?)!! (e internamente obtener la absoluta...)
 		'dimensiones' 	=> '320x',
 		'calidad' 			=> 70 //%
 	);
@@ -54,7 +68,7 @@ if (hay_archivo_subido('imagen'))
 
 	$opciones_imagen['mini'] = $opciones_imagen_mini;
 	
-	guardar_imagen_subida('imagen', $opciones_imagen);
+	$ruta_imagen = guardar_imagen_subida('imagen', $opciones_imagen);
 }	
 
 //
@@ -97,7 +111,11 @@ function guardar_imagen_subida($nombre_upload, $opciones = array())
 	if (isset($opciones['mini'])) $destino_mini = guardar_imagen_subida($nombre_upload, $opciones['mini']);
 			//!! o guardar_imagen($ruta, $opciones, ...)  ¿¿?? procesar_y_guardar_imagen($ruta..,....
 	
-	return $ruta_destino;	//!! o array rutas..
+	normalizar_permisos_archivo($ruta_destino);
+	
+	//return $ruta_destino;	//!! o array rutas..
+	
+	return str_replace(RUTA_RAIZ, '', $ruta_destino);
 }
 
 function ruta_destino($opciones, $as = null)
@@ -271,8 +289,18 @@ function guardar_archivo_subido($nombre_upload, $ruta_destino = '')
 		
 	echo $as['name'] . " se ha guardado en $ruta_destino";
 	
-	return $ruta_destino;
+	normalizar_permisos_archivo($ruta_destino);
+	
+	//return $ruta_destino;
+	return str_replace(RUTA_RAIZ, '', $ruta_destino);
 }
+
+
+function normalizar_permisos_archivo($ruta)
+{
+	chmod($ruta, 0666);
+}
+
 
 function extension($ruta_archivo)
 {
@@ -467,4 +495,7 @@ archivo <input name=archivo type=file >
 imagen <input name=imagen type=file >
 <input type=submit >
 </form>
+<? if (isset($ruta_imagen)) : ?>
+<img src="<?=@$ruta_imagen?>" alt="ruta = <?=@$ruta_imagen?>" />
+<? endif ?>
 </body>
