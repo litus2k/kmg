@@ -1,4 +1,5 @@
 <?php
+//exit("desactivado, pendiente arreglos y pruebas");
 
 //para evitar error 403 Forbidden y poder realizar la extracción de datos de la web remota (web scrapping)
 ini_set('user_agent', "Mozilla/5.0 Galeon/1.0.2 (X11; Linux i686; U;) Gecko/20011224"); //en principio vale cualquier cadena
@@ -14,12 +15,12 @@ include 'lib/phpQuery.php';
 //patrones fuentes de datos
 	
 	//test
+	
 	define('PAGINA_SORTEOS'	, 'test/pagina.html');
 	define('DATOS_SORTEO'	, 'test/sorteo-%d.html');
-	
-	
-	/*
+			
 	//web loteriasyapuestas.es
+	/*
 	define('PAGINA_SORTEOS'	, 'http://www.loteriasyapuestas.es/index.php/mod.sorteos/mem.buscarListadoSorteos/filtro_cf.celebrado/juego.EMIL/pagina.%s');
 	define('DATOS_SORTEO'	, 'http://www.loteriasyapuestas.es/index.php/mod.sorteos/mem.buscarDetalleSorteos/juego.EMIL/idsorteo.%d');
 	*/
@@ -41,7 +42,7 @@ include 'lib/phpQuery.php';
 		
 //extraer datos
 
-	function datos_sorteo($id_sorteo = 768502038)
+	function datos_sorteo($id_sorteo = 768202037)
 	{
 		// sorteo
 		
@@ -51,7 +52,7 @@ include 'lib/phpQuery.php';
 		list($apuestas, $recaudacion, $bote, $premios) = pq_cantidades(pq(DATOS_GENERALES), 0, 1, 2, 3);
 		//var_dump($apuestas, $recaudacion, $bote, $premios);
 		
-		list($premio, $acertantes) =  pq_cantidades(pq(TABLA_PREMIOS), 3, 4);
+		list($premio, $acertantes) =  pq_cantidades(pq(TABLA_PREMIOS), 2, 3);
 		//var_dump($premio, $acertantes);
 		
 		return array($premio, $acertantes, $apuestas, $recaudacion, $bote, $premios);
@@ -68,14 +69,14 @@ include 'lib/phpQuery.php';
 		
 		$l = array();
 		while (!is_null($i = array_shift($args))) // !! usa is_null para evitar problemas con valores 0
-			$l[] = cantidad_texto(pq($o->elements[$i])->text());
+			$l[] = isset($o->elements[$i]) ? cantidad_texto(pq($o->elements[$i])->text()) : '';
 			
 		return count($l) > 1 ? $l : $l[0];
 	}	
 
 	function cantidad_texto($cadena)
 	{
-		return preg_replace("/[^0-9]/", "", $cadena);
+		return preg_replace("/[^0-9,\.]/", "", $cadena);
 	}
 		
 		
@@ -147,7 +148,7 @@ include 'lib/phpQuery.php';
 	//var_dump(lista_sorteos()); exit('fin lista');
 
 
-define('RUTA_ARCHIVO_DATOS'	, 'datos.csv');
+define('RUTA_ARCHIVO_DATOS'	, 'eme-historico_2004-20011.csv');
 define('MODO_ESCRITURA'		, 'w');
 define('MODO_LECTURA'		, 'r');
 	
@@ -175,9 +176,11 @@ define('MODO_LECTURA'		, 'r');
 
 
 /*
-	extraer datos 40 paginas
+	+extraer datos 40 paginas
 	
-		!! errores algunos sorteos pag. 36	=> todos al empezar el 2005
+		--¿?!! revisar columnas premio, acertantes
+	
+		--!! errores algunos sorteos pag. 36	=> todos al empezar el 2005
 				531902001 21/01/2005
 				531202001 14/01/2005
 				530502001 07/01/2005
