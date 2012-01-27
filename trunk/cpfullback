@@ -1,4 +1,12 @@
 #!/bin/bash
+# *************************************************************************
+# Proceso bash para automatizar la creación de copias de respaldo completas 
+# de las cuentas de CPanel del servidor.  
+#
+# Se puede llamar vía cron, por ejemplo:
+# 35 4 * * * /scripts/fullback 2>&1 | tee /var/logs/fullback.log
+# *************************************************************************
+
 IFS="$"
 
 HORA_MAXIMA=4
@@ -56,5 +64,5 @@ done
 
 echo "$HOST fin proceso a las $(date +"%H:%M:%S")"
 
-# strings /backup/fullback.log | mail -s "fullback log $HOST" root
+# strings /var/logs/fullback.log | mail -s "fullback log $HOST" root
 exit 0
