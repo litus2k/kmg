@@ -1,1 +1,60 @@
-fullback
+#!/bin/bash
+IFS="$"
+
+HORA_MAXIMA=4
+DIAS_MAXIMO=30
+LOAD_MAXIMO=5
+SEGUNDOS_ESPERA=120
+
+HOST=$(uname -n)
+
+echo "$HOST inicio proceso a las $(date +"%H:%M:%S")"
+
+cd /home
+
+ls /var/cpanel/users | grep -v "root\|mysql\|nobody" | while read CPUSER; do
+
+        load=1
+
+        until [ "$load" == "0" ]
+        do
+                # comprobar hora
+                hora=$(date +%H)
+                if [ $hora -gt $HORA_MAXIMA ]
+                then
+                        echo "paso la hora maxima (las $HORA_MAXIMA h)!!!"
+                        exit 1
+                fi
+
+                # comprobar load
+                l15="$(uptime |awk -F'average:' '{ print $2}' | sed s/,//g | awk '{ print $2}')"
+                load="$(echo "$l15 >= $LOAD_MAXIMO" | bc)"
+                if [ "$load" == "1" ]
+                then
+                        echo "load $l15 >= $LOAD_MAXIMO  esperando $SEGUNDOS_ESPERA segundos..."
+                        sleep $SEGUNDOS_ESPERA
+                fi
+
+        done
+
+        r=/home/cpmove-${CPUSER}.tar.gz
+        if [ -e $r ]
+        then
+                d=$((($(date +%s) - $(stat -c '%Y' "$r"))/86400))
+                if [ $d -lt $DIAS_MAXIMO ]
+                then
+                        echo "backup ${CPUSER} solo tiene $d dias... continuar con el siguiente"
+                        continue
+                fi
+        fi
+
+        echo "$(date +"%H:%M:%S") inicio backup ${CPUSER}"
+        /scripts/pkgacct ${CPUSER}
+        echo "$(date +"%H:%M:%S") fin backup ${CPUSER}"
+
+done
+
+echo "$HOST fin proceso a las $(date +"%H:%M:%S")"
+
+# strings /backup/fullback.log | mail -s "fullback log $HOST" root
+exit 0
