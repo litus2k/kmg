@@ -5,6 +5,8 @@
 #
 # Se puede llamar vía cron, por ejemplo:
 # 35 4 * * * /scripts/fullback 2>&1 | tee /var/logs/fullback.log
+# o tambien
+# 35 4 * * * /scripts/fullback OldsTo host carpeta 2>&1 | tee /backup/fullback.log
 # *************************************************************************
 
 IFS="$"
