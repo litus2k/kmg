@@ -18,6 +18,14 @@ HOST=$(uname -n)
 
 echo "$HOST inicio proceso a las $(date +"%H:%M:%S")"
 
+if [ $# -eq 3 ]; then
+        if [ "OldsTo" = "$1" ]; then
+                MHOST=$2
+                MPATH=$3
+                echo "los backups antiguos van a $MHOST.cat1.net carpeta /backup/$MPATH/"
+        fi
+fi
+
 cd /home
 
 ls /var/cpanel/users | grep -v "root\|mysql\|nobody" | while read CPUSER; do
@@ -53,6 +61,11 @@ ls /var/cpanel/users | grep -v "root\|mysql\|nobody" | while read CPUSER; do
                 then
                         echo "backup ${CPUSER} solo tiene $d dias... continuar con el siguiente"
                         continue
+                else
+                        if [ -n "$MHOST" ] && [ -n "$MPATH" ]; then
+                                echo "copiar backup antiguo $r a $MHOST /backup/$MPATH/"
+                                rsync -avvhpzrP --rsh=ssh $r root@$MHOST.cat1.net:/backup/$MPATH/
+                        fi                        
                 fi
         fi
 
